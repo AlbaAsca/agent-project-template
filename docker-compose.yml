@@ -1,0 +1,16 @@
+# EJEMPLO (reemplazable) — preview de la rama develop desplegada por el job `deploy` de CI
+# en el runner autoalojado. Sin backend, sin BD, sin cloud. Reemplaza <PROJECT> y <PORT>.
+# Uso manual: docker compose -f docker-compose.yml -p <PROJECT> up -d --build
+
+name: <PROJECT>
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: <PROJECT>:latest
+    container_name: <PROJECT>
+    ports:
+      - "<PORT>:80"
+    restart: unless-stopped

@@ -1,0 +1,90 @@
+name: ci
+run-name: "ci: ${{ github.ref_name }} (${{ github.actor }})"
+
+# Plantilla de CI para runner AUTOALOJADO con Docker (sin sudo). Jobs: verify -> e2e -> deploy.
+# Reemplaza los marcadores: <RUNNER_LABEL> (label del runner), <PROJECT>, <PORT>.
+# Las partes de frontend/e2e asumen Node + Playwright (stack de ejemplo); adáptalas a tu stack.
+# Los fixes de infra (chown del workspace, contenedor de Playwright, puerto) están explicados
+# en docs/LESSONS.md — no los quites sin entender por qué están.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: [self-hosted, <RUNNER_LABEL>]
+    timeout-minutes: 15
+    steps:
+      - name: Reclaim root-owned files in the workspace
+        # A container-based job (e.g. e2e) running as root can leave root-owned files
+        # in the shared self-hosted workspace; the non-root runner user then cannot
+        # clean them and actions/checkout fails at its clean step (EACCES). Reclaim the
+        # whole tree by chowning it to the workspace root's owner, via a throwaway root
+        # container (docker is available without sudo on the runner) before checkout.
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE":/w alpine \
+            sh -c 'chown -R "$(stat -c "%u:%g" /w)" /w' || true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: "22", cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: ./scripts/verify.sh native
+
+  e2e:
+    # Corre DENTRO del contenedor oficial de Playwright (navegadores preinstalados) para
+    # evitar `playwright install --with-deps`, que necesita sudo no disponible en el runner.
+    # Fija la versión al mismo minor que tu dependencia @playwright/test.
+    needs: verify
+    runs-on: [self-hosted, <RUNNER_LABEL>]
+    timeout-minutes: 15
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - working-directory: frontend
+        run: npm ci --silent
+      - working-directory: frontend
+        run: npm run test:e2e
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+      - name: Return workspace ownership to the host runner user
+        # The container runs as root; chown everything it wrote back to the workspace
+        # root's owner so later host-context checkouts don't fail with EACCES.
+        if: always()
+        run: chown -R "$(stat -c "%u:%g" "$GITHUB_WORKSPACE")" "$GITHUB_WORKSPACE"
+
+  deploy:
+    # Preview de develop en el propio runner autoalojado (Docker). Solo en push a develop.
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: [self-hosted, <RUNNER_LABEL>]
+    timeout-minutes: 15
+    concurrency:
+      group: deploy-<PROJECT>
+      cancel-in-progress: false
+    steps:
+      - name: Reclaim root-owned files in the workspace
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE":/w alpine \
+            sh -c 'chown -R "$(stat -c "%u:%g" /w)" /w' || true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Free port <PORT> from any stale/orphan container
+        run: |
+          docker compose -f docker-compose.yml -p <PROJECT> down --remove-orphans || true
+          ids=$(docker ps -aq --filter "publish=<PORT>")
+          if [ -n "$ids" ]; then docker rm -f $ids; fi
+      - run: docker compose -f docker-compose.yml -p <PROJECT> up -d --build --force-recreate

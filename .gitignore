@@ -1,0 +1,30 @@
+# Dependencias
+node_modules/
+.venv/
+venv/
+__pycache__/
+target/
+.m2/
+
+# Builds
+dist/
+build/
+out/
+
+# Test / e2e
+coverage/
+test-results/
+playwright-report/
+.playwright/
+
+# Entorno / secretos (NUNCA commitear valores reales)
+.env
+.env.local
+*.local
+
+# Editor / SO
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
