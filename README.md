@@ -39,6 +39,8 @@ Después, en cualquiera de las dos:
 | `docs/state.md` | Handoff entre sesiones (estado actual, decisiones cerradas, bloqueos). |
 | `docs/architecture.md` | El "porqué" de las decisiones de diseño. |
 | `docs/LESSONS.md` | **Lecciones ganadas a golpes**: RAG por PowerShell, verificación local rápida, aislamiento por worktree, fixes de CI (Playwright, ownership del workspace, puertos). |
+| `docs/STACK_RECIPES.md` | Recetas drop-in de `verify.sh`/CI/Docker por stack: React+Vite (default), Java+Maven/Spring, Python. |
+| `docs/DESIGN_BRIEF.md` | Plantilla opcional para encargar un rediseño de UI implementable sin romper el contrato ni los tests. |
 | `.claude/agents/` | Subagentes `implementer` (TDD, una tarea) y `reviewer` (solo lectura, APPROVE/REJECT). |
 | `.claude/commands/` | `/next-task` (orquesta la siguiente tarea) y `/close-session`. |
 | `.claude/hooks/` + `settings.json` | Recordatorios automáticos: Regla #0 (RAG), delegación, DoD. |
