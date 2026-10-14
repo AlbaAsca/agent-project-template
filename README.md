@@ -1,5 +1,7 @@
 # agent-project-template
 
+> 🇬🇧 *Project template for autonomous development with Claude Code: orchestrator → implementer → reviewer loop, strict TDD, Git Flow, CI with verify/e2e/deploy, hooks and subagents — so the agent works with discipline from the first commit.*
+
 Plantilla de proyecto para **desarrollo autónomo con Claude Code**. No es un scaffold de
 código: es la **forma de trabajar** ya escrita — bucle orquestador→implementer→reviewer,
 TDD estricto, Git Flow, CI con verify/e2e/deploy, hooks, subagentes y las lecciones ya
